@@ -1,0 +1,3 @@
+[submodule "MyGPIO"]
+	path = MyGPIO
+	url = https://github.com/freedom27/MyGPIO
