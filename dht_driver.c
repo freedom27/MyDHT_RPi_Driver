@@ -1,4 +1,6 @@
 #include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
 #include "dht_driver.h"
 
 #define DATA_LENGTH 40
@@ -25,8 +27,6 @@ int dht_read(int gpio_pin, float *humidity, float *temperature) {
 	
 	*humidity = 0.0f;
 	*temperature = 0.0f;
-	int dataBits[DATA_LENGTH] = {0};
-	int waitTime[DATA_LENGTH] = {0};
 	
 	//since all the code below is time critical it is better to have the highest possible priority
 	set_process_priority(MAX_PRIORITY);
@@ -57,47 +57,43 @@ int dht_read(int gpio_pin, float *humidity, float *temperature) {
 		return DHT_ERROR;
 	}
 	//handshake ended
-	//data transmission start
 	
-	for(int i = 0; i < DATA_LENGTH; ++i) {
+	struct timespec bits_len[DATA_LENGTH * 2];
+	//data transmission start
+	for(int i = 0; i < DATA_LENGTH * 2; ++i) {
 		//every bit begins with a low value that lasts for 50us
-		int currentWaitTime = wait_for_value(gpio_pin, HIGH);
-		if(currentWaitTime < 0) {
+		if(wait_for_value(gpio_pin, HIGH) < 0) {
 			set_process_priority(DEFAULT_PRIORITY);
 			return DHT_ERROR;
 		}
-		waitTime[i] = currentWaitTime;
 		//once the value is HIGH i need to check for how long it stays in such state
 		//0 = 26~28us
 		//1 = 70us
+		clock_gettime(CLOCK_MONOTONIC, &bits_len[i]);
 		int currentBitTime = wait_for_value(gpio_pin, LOW);
+		clock_gettime(CLOCK_MONOTONIC, &bits_len[++i]);
 		if(currentBitTime < 0) {
 			set_process_priority(DEFAULT_PRIORITY);
 			return DHT_ERROR;
 		}
-		dataBits[i] = currentBitTime;
 	}
 	//data transmission ended	
 	set_process_priority(DEFAULT_PRIORITY);
 	
-	//now to have a time reference for the iterations let's evaluate the average number of iterations for the wait
-	//cilces that is supposed to be 50us.
 	//I'm calculating this now because previous operations where time critical 
 	//so anything not strictly necessary was supposed to be avoided
-	int avgWait = 0;
-	for(int i = 0; i < DATA_LENGTH; ++i) {
-		avgWait += waitTime[i];
-	}
-	avgWait /= DATA_LENGTH; //this should be the reference for 50us
-	
 	uint8_t dataBytes[5] = {0};
-	for(int i = 0; i < DATA_LENGTH; ++i) {
+	for(int i = 0; i < DATA_LENGTH * 2; ++i) {
+		struct timespec t1 = bits_len[i];
+		struct timespec t2 = bits_len[++i];
+		//the difference in sec between t2 and t1 should never be more than 1
+		long dt = ((((t2.tv_sec - t1.tv_sec) * 1000000000) + t2.tv_nsec) -  t1.tv_nsec) / 1000;
 		uint8_t currentBit = 0;
-		if(dataBits[i] > avgWait) {
+		if(dt > 50)
 			currentBit = 1;
-		}
-		dataBytes[i / 8] |= currentBit << (7 - (i % 8));
+		dataBytes[(i /2) / 8] |= currentBit << (7 - ((i / 2) % 8));
 	}
+	
 	
 	//check checksum
 	uint8_t checksum = (dataBytes[0] + dataBytes[1] + dataBytes[2] + dataBytes[3]) & 0xFF;
