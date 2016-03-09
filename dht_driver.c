@@ -87,9 +87,9 @@ int dht_read(int gpio_pin, float *humidity, float *temperature) {
 		struct timespec t1 = bits_len[i];
 		struct timespec t2 = bits_len[++i];
 		//the difference in sec between t2 and t1 should never be more than 1
-		long dt = ((((t2.tv_sec - t1.tv_sec) * 1000000000) + t2.tv_nsec) -  t1.tv_nsec) / 1000;
+		long dT = ((((t2.tv_sec - t1.tv_sec) * 1000000000) + t2.tv_nsec) -  t1.tv_nsec) / 1000;
 		uint8_t currentBit = 0;
-		if(dt > 50)
+		if(dT > 50) // since around 25us is 0 and around 70us is 1 I use 50us as threshold to distinguish between 0 and 1
 			currentBit = 1;
 		dataBytes[(i /2) / 8] |= currentBit << (7 - ((i / 2) % 8));
 	}
@@ -104,9 +104,9 @@ int dht_read(int gpio_pin, float *humidity, float *temperature) {
 	*humidity = ((dataBytes[0] << 8) | dataBytes[1]) / 10.0f;
 	if(dataBytes[2] >> 7) { // first bit of temperature is 1 hence temperature is below zero
 		*temperature = -1.0 * (((dataBytes[2] & 127) << 8) | dataBytes[3]) / 10.0f;
-	} else
+	} else {
 		*temperature = ((dataBytes[2] << 8) | dataBytes[3]) / 10.0f;
-	
+	}
 	
 	return DHT_OK;
 }
