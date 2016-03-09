@@ -16,17 +16,17 @@ inline int wait_for_value(int gpio_pin, int value) {
 	return count;
 }
 
-int dht_read(int gpio_pin, float *humidity, float *temperature) {
-	if(humidity == NULL || temperature == NULL) {
-		return DHT_ERROR;
+int dht_read(int gpio_pin, struct dht_sensor_data *sensor_data) {
+	if(sensor_data == NULL) {
+		return DHT_INPUT_ERROR;
 	}
 	
 	if(gpio_init() == MY_GPIO_FAILURE) {
-		return DHT_ERROR;
+		return DHT_INIT_ERROR;
 	}
 	
-	*humidity = 0.0f;
-	*temperature = 0.0f;
+	sensor_data->humidity = 0.0f;
+	sensor_data->temperature = 0.0f;
 	
 	//since all the code below is time critical it is better to have the highest possible priority
 	set_process_priority(MAX_PRIORITY);
@@ -43,18 +43,18 @@ int dht_read(int gpio_pin, float *humidity, float *temperature) {
 	//now to see if sensor detected our request wait for it to pull the pin down
 	if(wait_for_value(gpio_pin, LOW) < 0) {
 		set_process_priority(DEFAULT_PRIORITY);
-		return DHT_ERROR;
+		return DHT_HANDSHAKE_ERROR;
 	}
 	
 	//once down the pin should stay in such state for 80us, let's wait for the pin to go up again
 	if(wait_for_value(gpio_pin, HIGH) < 0) {
 		set_process_priority(DEFAULT_PRIORITY);
-		return DHT_ERROR;
+		return DHT_HANDSHAKE_ERROR;
 	}
 	//now th data transmission will begin soon... as the pin goes low again (after another 80us) the first bit will begin
 	if(wait_for_value(gpio_pin, LOW) < 0) {
 		set_process_priority(DEFAULT_PRIORITY);
-		return DHT_ERROR;
+		return DHT_HANDSHAKE_ERROR;
 	}
 	//handshake ended
 	
@@ -64,7 +64,7 @@ int dht_read(int gpio_pin, float *humidity, float *temperature) {
 		//every bit begins with a low value that lasts for 50us
 		if(wait_for_value(gpio_pin, HIGH) < 0) {
 			set_process_priority(DEFAULT_PRIORITY);
-			return DHT_ERROR;
+			return DHT_TIMEOUT_ERROR;
 		}
 		//once the value is HIGH i need to check for how long it stays in such state
 		//0 = 26~28us
@@ -74,7 +74,7 @@ int dht_read(int gpio_pin, float *humidity, float *temperature) {
 		clock_gettime(CLOCK_MONOTONIC, &bits_len[++i]);
 		if(currentBitTime < 0) {
 			set_process_priority(DEFAULT_PRIORITY);
-			return DHT_ERROR;
+			return DHT_TIMEOUT_ERROR;
 		}
 	}
 	//data transmission ended	
@@ -98,14 +98,14 @@ int dht_read(int gpio_pin, float *humidity, float *temperature) {
 	//check checksum
 	uint8_t checksum = (dataBytes[0] + dataBytes[1] + dataBytes[2] + dataBytes[3]) & 0xFF;
 	if(checksum != dataBytes[4]) {
-		return DHT_ERROR;
+		return DHT_CHECKSUM_ERROR;
 	}
 	
-	*humidity = ((dataBytes[0] << 8) | dataBytes[1]) / 10.0f;
+	sensor_data->humidity = ((dataBytes[0] << 8) | dataBytes[1]) / 10.0f;
 	if(dataBytes[2] >> 7) { // first bit of temperature is 1 hence temperature is below zero
-		*temperature = -1.0 * (((dataBytes[2] & 127) << 8) | dataBytes[3]) / 10.0f;
+		sensor_data->temperature = -1.0 * (((dataBytes[2] & 127) << 8) | dataBytes[3]) / 10.0f;
 	} else {
-		*temperature = ((dataBytes[2] << 8) | dataBytes[3]) / 10.0f;
+		sensor_data->temperature = ((dataBytes[2] << 8) | dataBytes[3]) / 10.0f;
 	}
 	
 	return DHT_OK;
