@@ -13,8 +13,8 @@
 #include "MyGPIO/my_time_utils.h"
 
 struct dht_sensor_data {
-	float humidity;
-	float temperature;
+    float humidity;
+    float temperature;
 };
 
 int dht_read(int gpio_pin, struct dht_sensor_data *sensor_data);
