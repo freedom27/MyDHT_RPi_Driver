@@ -1,12 +1,12 @@
 #ifndef DHT_DRIVER_H
 #define DHT_DRIVER_H
 
-#define DHT_HANDSHAKE_ERROR 	-1
-#define DHT_TIMEOUT_ERROR 		-2
-#define DHT_CHECKSUM_ERROR		-3
-#define DHT_INPUT_ERROR			-4
-#define DHT_INIT_ERROR			-5
-#define DHT_OK 					 0
+#define DHT_HANDSHAKE_ERROR     -1
+#define DHT_TIMEOUT_ERROR       -2
+#define DHT_CHECKSUM_ERROR      -3
+#define DHT_INPUT_ERROR         -4
+#define DHT_INIT_ERROR          -5
+#define DHT_OK                   0
 
 #include "MyGPIO/my_gpio.h"
 #include "MyGPIO/my_utils.h"
