@@ -16,7 +16,7 @@ inline int wait_for_value(int gpio_pin, int value) {
     return count;
 }
 
-int dht_read(int gpio_pin, struct dht_sensor_data *sensor_data) {
+int dht_read(int type, int gpio_pin, struct dht_sensor_data *sensor_data) {
     if(sensor_data == NULL) {
         return DHT_INPUT_ERROR;
     }
@@ -99,12 +99,17 @@ int dht_read(int gpio_pin, struct dht_sensor_data *sensor_data) {
     if(checksum != dataBytes[4]) {
         return DHT_CHECKSUM_ERROR;
     }
-	
-    sensor_data->humidity = ((dataBytes[0] << 8) | dataBytes[1]) / 10.0f;
-    if(dataBytes[2] >> 7) { // first bit of temperature is 1 hence temperature is below zero
-        sensor_data->temperature = -1.0 * (((dataBytes[2] & 127) << 8) | dataBytes[3]) / 10.0f;
+    
+    if(type == DHT11) {
+        sensor_data->humidity = (float)dataBytes[0];
+        sensor_data->temperature = (float)dataBytes[2];
     } else {
-        sensor_data->temperature = ((dataBytes[2] << 8) | dataBytes[3]) / 10.0f;
+        sensor_data->humidity = ((dataBytes[0] << 8) | dataBytes[1]) / 10.0f;
+        if(dataBytes[2] >> 7) { // first bit of temperature is 1 hence temperature is below zero
+            sensor_data->temperature = -1.0 * (((dataBytes[2] & 127) << 8) | dataBytes[3]) / 10.0f;
+        } else {
+            sensor_data->temperature = ((dataBytes[2] << 8) | dataBytes[3]) / 10.0f;
+        }
     }
 	
     return DHT_OK;

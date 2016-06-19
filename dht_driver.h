@@ -8,6 +8,9 @@
 #define DHT_INIT_ERROR          -5
 #define DHT_OK                   0
 
+#define DHT11                    0
+#define DHT22                    1
+
 #include "MyGPIO/my_gpio.h"
 #include "MyGPIO/my_utils.h"
 #include "MyGPIO/my_time_utils.h"
@@ -17,6 +20,6 @@ struct dht_sensor_data {
     float temperature;
 };
 
-int dht_read(int gpio_pin, struct dht_sensor_data *sensor_data);
+int dht_read(int type, int gpio_pin, struct dht_sensor_data *sensor_data);
 
 #endif
